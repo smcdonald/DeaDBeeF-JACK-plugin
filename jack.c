@@ -328,8 +328,8 @@ jack_load (DB_functions_t *api) {
 }
 
 static const char settings_dlg[] =
-    "property \"Start JACK server automatically, if not already running (buggy, not recommended)\" checkbox jack.autostart 0;\n"
     "property \"Automatically connect to system playback ports\" checkbox jack.autoconnect 1;\n"
+    "property \"Start JACK server automatically, if not already running (buggy, not recommended)\" checkbox jack.autostart 0;\n"
     "property \"Automatically restart JACK server if shut down (buggy, not recommended)\" checkbox jack.autorestart 0;\n"
 ;
 
