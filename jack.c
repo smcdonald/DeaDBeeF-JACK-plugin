@@ -44,7 +44,7 @@ static short DidWeStartJack = 0;
 static int rate;
 
 static int
-jack_free_deadbeef (void);
+jack_stop (void);
 
 static int
 jack_init (void);
@@ -113,8 +113,14 @@ jack_rate_callback (void *arg) {
 static int
 jack_shutdown_callback (void *arg) {
     // if JACK crashes or is shut down, start a new server instance
-    sleep (2);
-    jack_init ();
+    if (deadbeef->conf_get_int ("jack.autorestart", 1) && jack_connected) {
+        sleep (2);
+        jack_init ();
+    }
+    else {
+        jack_connected = 0;
+        jack_stop ();
+    }
     return 0;
 }
 
@@ -124,7 +130,7 @@ jack_init (void) {
     jack_connected = 1;
 
     // create new client on JACK server
-    if ((ch = jack_client_open (JACK_CLIENT_NAME, JackNullOption, &jack_status)) == 0) {
+    if ((ch = jack_client_open (JACK_CLIENT_NAME, JackNullOption | (JackNoStartServer && !deadbeef->conf_get_int ("jack.autostart", 1)), &jack_status)) == 0) {
         fprintf (stderr, "jack: could not connect to JACK server\n");
         plugin.free();
         return -1;
@@ -177,19 +183,21 @@ jack_init (void) {
     }
 
     // connect ports to hardware output
-    const char **playback_ports;
+    if (deadbeef->conf_get_int ("jack.autoconnect", 1)) {
+        const char **playback_ports;
 
-    if (!(playback_ports = jack_get_ports (ch, 0, 0, JackPortIsPhysical|JackPortIsInput))) {
-        fprintf (stderr, "jack: warning: could not find any playback ports to connect to\n");
-    }
-    else {
-        for (unsigned short i=0; i < CHANNELS; i++) {
-            if ((errcode = jack_connect(ch, jack_port_name (jack_ports[i]), playback_ports[i]))) {
-                // FIXME: Handle case where connection already exists
+        if (!(playback_ports = jack_get_ports (ch, 0, 0, JackPortIsPhysical|JackPortIsInput))) {
+            fprintf (stderr, "jack: warning: could not find any playback ports to connect to\n");
+        }
+        else {
+            for (unsigned short i=0; i < CHANNELS; i++) {
+                if ((errcode = jack_connect(ch, jack_port_name (jack_ports[i]), playback_ports[i]))) {
+                    // FIXME: Handle case where connection already exists
 
-                fprintf (stderr, "jack: could not create connection from %s to %s\n", jack_port_name (jack_ports[i]), playback_ports[i]);
-                plugin.free();
-                return -1;
+                    fprintf (stderr, "jack: could not create connection from %s to %s\n", jack_port_name (jack_ports[i]), playback_ports[i]);
+                    plugin.free();
+                    return -1;
+                }
             }
         }
     }
@@ -215,7 +223,7 @@ jack_play (void) {
     trace ("jack_play\n");
     if (!jack_connected) {
         // sleep to allow any other plugins to fully close
-        sleep (1);
+        sleep (2);
         if (jack_init() != 0) {
             trace("jack_init failed\n");
             plugin.free();
@@ -296,6 +304,7 @@ jack_get_endianness (void) {
 static int
 jack_free_deadbeef (void) {
     trace ("jack_free_deadbeef\n");
+    jack_connected = 0;
 
     // stop playback if we didn't start jack
     // this prevents problems with not disconnecting gracefully
@@ -312,7 +321,6 @@ jack_free_deadbeef (void) {
     // sleeping here is necessary to give JACK time to disconnect from the backend
     // if we are switching to another backend, it will fail without this
     sleep (1);
-    jack_connected = 0;
     return 0;
 }
 
@@ -321,6 +329,12 @@ jack_load (DB_functions_t *api) {
     deadbeef = api;
     return DB_PLUGIN (&plugin);
 }
+
+static const char settings_dlg[] =
+    "property \"Start JACK server automatically, if not already running\" checkbox jack.autostart 1;\n"
+    "property \"Automatically connect to system playback ports\" checkbox jack.autoconnect 1;\n"
+    "property \"Automatically restart JACK server if shut down\" checkbox jack.autorestart 1;\n"
+;
 
 // define plugin interface
 static DB_output_t plugin = {
@@ -337,6 +351,7 @@ static DB_output_t plugin = {
     .plugin.website = "http://deadbeef.sf.net",
     .plugin.start = jack_plugin_start,
     .plugin.stop = jack_plugin_stop,
+    .plugin.configdialog = settings_dlg,
     .init = jack_init,
     .free = jack_free_deadbeef,
     .change_rate = jack_change_rate,
