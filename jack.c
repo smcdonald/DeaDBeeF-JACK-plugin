@@ -196,10 +196,9 @@ jack_init (void) {
         }
         else {
             for (unsigned short i=0; i < CHANNELS; i++) {
-                if ((errcode = jack_connect(ch, jack_port_name (jack_ports[i]), playback_ports[i]))) {
-                    // FIXME: Handle case where connection already exists
-
-                    fprintf (stderr, "jack: could not create connection from %s to %s\n", jack_port_name (jack_ports[i]), playback_ports[i]);
+                // error code 17 means port connection exists. We do not want to return an error in this case, simply proceed.
+                if ((errcode = jack_connect(ch, jack_port_name (jack_ports[i]), playback_ports[i])) && (errcode != 17)) {
+                    fprintf (stderr, "jack: could not create connection from %s to %s, error %d\n", jack_port_name (jack_ports[i]), playback_ports[i], errcode);
                     plugin.free();
                     return -1;
                 }
