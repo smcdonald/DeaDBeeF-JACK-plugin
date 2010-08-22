@@ -114,7 +114,6 @@ static int
 jack_shutdown_callback (void *arg) {
     // if JACK crashes or is shut down, start a new server instance
     if (deadbeef->conf_get_int ("jack.autorestart", 1) && jack_connected) {
-        sleep (2);
         jack_init ();
     }
     else {
@@ -127,6 +126,9 @@ jack_shutdown_callback (void *arg) {
 static int
 jack_init (void) {
     trace ("jack_init\n");
+    // user can configure plugin to sleep here
+    // this can help give other output plugins time to shut down
+    sleep (deadbeef->conf_get_int ("jack.initsleep", 0));
     jack_connected = 1;
 
     // create new client on JACK server
@@ -222,8 +224,6 @@ static int
 jack_play (void) {
     trace ("jack_play\n");
     if (!jack_connected) {
-        // sleep to allow any other plugins to fully close
-        sleep (2);
         if (jack_init() != 0) {
             trace("jack_init failed\n");
             plugin.free();
@@ -334,6 +334,7 @@ static const char settings_dlg[] =
     "property \"Start JACK server automatically, if not already running\" checkbox jack.autostart 1;\n"
     "property \"Automatically connect to system playback ports\" checkbox jack.autoconnect 1;\n"
     "property \"Automatically restart JACK server if shut down\" checkbox jack.autorestart 1;\n"
+    "property \"Time to sleep before initialising JACK (seconds):\" entry jack.initsleep 0;\n"
 ;
 
 // define plugin interface
