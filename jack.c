@@ -118,7 +118,7 @@ jack_shutdown_callback (void *arg) {
     }
     else {
         jack_connected = 0;
-        jack_stop ();
+        deadbeef->playback_stop ();
     }
     return 0;
 }
