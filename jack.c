@@ -17,12 +17,16 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 #define JACK_CLIENT_NAME "deadbeef"
 #define CHANNELS 2
 
 #include <unistd.h>
 #include <jack/jack.h>
-#include "../../deadbeef.h"
+#include <deadbeef/deadbeef.h>
 
 //#define trace(...) { fprintf(stderr, __VA_ARGS__); }
 #define trace(fmt,...)
@@ -41,6 +45,9 @@ static int rate;
 
 static int
 jack_free_deadbeef (void);
+
+static int
+jack_init (void);
 
 static int
 jack_proc_callback (jack_nframes_t nframes, void *arg) {
@@ -104,6 +111,14 @@ jack_rate_callback (void *arg) {
 }
 
 static int
+jack_shutdown_callback (void *arg) {
+    // if JACK crashes or is shut down, start a new server instance
+    sleep (2);
+    jack_init ();
+    return 0;
+}
+
+static int
 jack_init (void) {
     trace ("jack_init\n");
     jack_connected = 1;
@@ -136,6 +151,9 @@ jack_init (void) {
         plugin.free();
         return -1;
     }
+
+    // set shutdown callback
+    jack_on_shutdown (ch, (JackShutdownCallback)&jack_shutdown_callback, NULL);
 
     // register ports
     for (unsigned short i=0; i < CHANNELS; i++) {
