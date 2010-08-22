@@ -118,10 +118,12 @@ jack_shutdown_callback (void *arg) {
     jack_connected = 0;
     // if JACK crashes or is shut down, start a new server instance
     if (deadbeef->conf_get_int ("jack.autorestart", 0)) {
+        fprintf (stderr, "jack: JACK server shut down unexpectedly, restarting...\n");
         sleep (1);
         jack_init ();
     }
     else {
+        fprintf (stderr, "jack: JACK server shut down unexpectedly, stopping playback\n");
         deadbeef->playback_stop ();
     }
     return 0;
