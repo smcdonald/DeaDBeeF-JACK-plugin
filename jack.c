@@ -114,6 +114,7 @@ static int
 jack_shutdown_callback (void *arg) {
     // if JACK crashes or is shut down, start a new server instance
     if (deadbeef->conf_get_int ("jack.autorestart", 0) && jack_connected) {
+        sleep (1);
         jack_init ();
     }
     else {
@@ -129,7 +130,7 @@ jack_init (void) {
     jack_connected = 1;
 
     // create new client on JACK server
-    if ((ch = jack_client_open (JACK_CLIENT_NAME, JackNullOption | (JackNoStartServer && !deadbeef->conf_get_int ("jack.autostart", 0)), &jack_status)) == 0) {
+    if ((ch = jack_client_open (JACK_CLIENT_NAME, JackNullOption | (JackNoStartServer && !deadbeef->conf_get_int ("jack.autostart", 1)), &jack_status)) == 0) {
         fprintf (stderr, "jack: could not connect to JACK server\n");
         plugin.free();
         return -1;
@@ -317,7 +318,8 @@ jack_free_deadbeef (void) {
 
     // sleeping here is necessary to give JACK time to disconnect from the backend
     // if we are switching to another backend, it will fail without this
-    sleep (1);
+    if (DidWeStartJack)
+        sleep (1);
     return 0;
 }
 
@@ -328,9 +330,9 @@ jack_load (DB_functions_t *api) {
 }
 
 static const char settings_dlg[] =
+    "property \"Start JACK server automatically, if not already running\" checkbox jack.autostart 1;\n"
     "property \"Automatically connect to system playback ports\" checkbox jack.autoconnect 1;\n"
-    "property \"Start JACK server automatically, if not already running (buggy, not recommended)\" checkbox jack.autostart 0;\n"
-    "property \"Automatically restart JACK server if shut down (buggy, not recommended)\" checkbox jack.autorestart 0;\n"
+    "property \"Automatically restart JACK server if shut down\" checkbox jack.autorestart 0;\n"
 ;
 
 // define plugin interface
