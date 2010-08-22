@@ -113,7 +113,7 @@ jack_rate_callback (void *arg) {
 static int
 jack_shutdown_callback (void *arg) {
     // if JACK crashes or is shut down, start a new server instance
-    if (deadbeef->conf_get_int ("jack.autorestart", 1) && jack_connected) {
+    if (deadbeef->conf_get_int ("jack.autorestart", 0) && jack_connected) {
         jack_init ();
     }
     else {
@@ -129,7 +129,7 @@ jack_init (void) {
     jack_connected = 1;
 
     // create new client on JACK server
-    if ((ch = jack_client_open (JACK_CLIENT_NAME, JackNullOption | (JackNoStartServer && !deadbeef->conf_get_int ("jack.autostart", 1)), &jack_status)) == 0) {
+    if ((ch = jack_client_open (JACK_CLIENT_NAME, JackNullOption | (JackNoStartServer && !deadbeef->conf_get_int ("jack.autostart", 0)), &jack_status)) == 0) {
         fprintf (stderr, "jack: could not connect to JACK server\n");
         plugin.free();
         return -1;
