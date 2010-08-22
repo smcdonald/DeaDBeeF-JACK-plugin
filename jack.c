@@ -60,7 +60,7 @@ jack_proc_callback (jack_nframes_t nframes, void *arg) {
 
     switch (state) {
         case OUTPUT_STATE_PLAYING: {
-            char buf[nframes * 4];
+            char buf[nframes * CHANNELS * 2];
             unsigned bytesread = deadbeef->streamer_read (buf, sizeof(buf));
 
             // this avoids a crash if we are playing and change to a plugin
@@ -126,9 +126,6 @@ jack_shutdown_callback (void *arg) {
 static int
 jack_init (void) {
     trace ("jack_init\n");
-    // user can configure plugin to sleep here
-    // this can help give other output plugins time to shut down
-    sleep (deadbeef->conf_get_int ("jack.initsleep", 0));
     jack_connected = 1;
 
     // create new client on JACK server
@@ -331,10 +328,9 @@ jack_load (DB_functions_t *api) {
 }
 
 static const char settings_dlg[] =
-    "property \"Start JACK server automatically, if not already running\" checkbox jack.autostart 1;\n"
+    "property \"Start JACK server automatically, if not already running (buggy, not recommended)\" checkbox jack.autostart 0;\n"
     "property \"Automatically connect to system playback ports\" checkbox jack.autoconnect 1;\n"
-    "property \"Automatically restart JACK server if shut down\" checkbox jack.autorestart 1;\n"
-    "property \"Time to sleep before initialising JACK (seconds):\" entry jack.initsleep 0;\n"
+    "property \"Automatically restart JACK server if shut down (buggy, not recommended)\" checkbox jack.autorestart 0;\n"
 ;
 
 // define plugin interface
