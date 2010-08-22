@@ -52,6 +52,7 @@ jack_init (void);
 static int
 jack_proc_callback (jack_nframes_t nframes, void *arg) {
     trace ("jack_proc_callback\n");
+    if (!jack_connected) return -1;
 
     // FIXME: This function copies from the streamer to a local buffer,
     //        and then to JACK's buffer. This is wasteful. Since JACK
@@ -107,18 +108,20 @@ jack_proc_callback (jack_nframes_t nframes, void *arg) {
 
 static int
 jack_rate_callback (void *arg) {
+    if (!jack_connected) return -1;
     rate = (int)jack_get_sample_rate(ch);
 }
 
 static int
 jack_shutdown_callback (void *arg) {
+    if (!jack_connected) return -1;
+    jack_connected = 0;
     // if JACK crashes or is shut down, start a new server instance
-    if (deadbeef->conf_get_int ("jack.autorestart", 0) && jack_connected) {
+    if (deadbeef->conf_get_int ("jack.autorestart", 0)) {
         sleep (1);
         jack_init ();
     }
     else {
-        jack_connected = 0;
         deadbeef->playback_stop ();
     }
     return 0;
@@ -313,6 +316,7 @@ jack_free_deadbeef (void) {
 
     if (jack_client_close (ch)) {
         fprintf (stderr, "jack: could not disconnect from JACK server\n");
+        deadbeef->playback_stop ();
         return -1;
     }
 
