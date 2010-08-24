@@ -17,6 +17,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#define _GNU_SOURCE
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif
@@ -27,6 +28,7 @@
 #include <unistd.h>
 #include <jack/jack.h>
 #include <deadbeef/deadbeef.h>
+#include <signal.h>
 
 //#define trace(...) { fprintf(stderr, __VA_ARGS__); }
 #define trace(fmt,...)
@@ -258,6 +260,10 @@ jack_pause (void) {
 static int
 jack_plugin_start (void) {
     trace ("jack_plugin_start\n");
+    sigset_t set;
+    sigemptyset (&set);
+    sigaddset (&set, SIGPIPE);
+    sigprocmask (SIG_BLOCK, &set, 0);
     return 0;
 }
 
@@ -315,10 +321,12 @@ jack_free_deadbeef (void) {
         sleep (1);
     }
 
-    if (jack_client_close (ch)) {
-        fprintf (stderr, "jack: could not disconnect from JACK server\n");
-        deadbeef->playback_stop ();
-        return -1;
+    if (ch) {
+        if (jack_client_close (ch)) {
+            fprintf (stderr, "jack: could not disconnect from JACK server\n");
+            return -1;
+        }
+        ch = NULL;
     }
 
     // sleeping here is necessary to give JACK time to disconnect from the backend
